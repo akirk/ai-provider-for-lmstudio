@@ -16,7 +16,7 @@ This plugin integrates [LM Studio](https://lmstudio.ai/) with the WordPress AI C
 
 Unlike the OpenAI-compatible `/v1/models` endpoint, this provider uses LM Studio's richer **native API** (`/api/v1/models`) to surface full model metadata — type, capabilities, and loaded state — so WordPress sees exactly what your LM Studio instance can do.
 
-This plugin is based on [Fueled/ai-provider-for-ollama](https://github.com/Fueled/ai-provider-for-ollama), adapted for LM Studio's native API with extended model management features.
+This plugin was initially based on [Fueled/ai-provider-for-ollama](https://github.com/Fueled/ai-provider-for-ollama).
 
 **Features:**
 
