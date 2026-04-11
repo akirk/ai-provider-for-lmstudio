@@ -50,9 +50,11 @@ Open LM Studio, go to the **Developer** tab, and click **Start Server**. The def
 
 Make sure CORS is enabled in LM Studio. In the **Developer** tab, enable **Allow requests from any origin** (or add your WordPress admin URL to the allowed origins). Without this, your browser will block requests from the WordPress admin to `localhost:1234`.
 
-### Is this plugin suitable for production sites?
+### Does the WordPress server need to reach LM Studio directly?
 
-This plugin is designed for **local WordPress development**. The settings page fetches model data directly from LM Studio in your browser, which means it works when your WordPress site and LM Studio are both running on the same machine. It is not suited for WordPress sites hosted on remote servers, since those cannot reach a local LM Studio instance.
+For the **settings page**, no — model listing and load/unload controls run entirely in your browser, so LM Studio only needs to be reachable from the machine you are using to access the WordPress admin.
+
+For **actual AI requests** (text generation, embeddings, etc.), yes — those are made server-side by WordPress, so the host you configure must be reachable from the WordPress server.
 
 ### Which model will be used?
 
