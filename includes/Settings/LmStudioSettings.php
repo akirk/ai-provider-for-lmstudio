@@ -129,7 +129,7 @@ class LmStudioSettings {
 		}
 		?>
 
-		<div class="wrap" style="max-width: 50rem;">
+		<div class="wrap">
 			<h1><?php echo esc_html( get_admin_page_title() ); ?></h1>
 			<p>
 				<?php
