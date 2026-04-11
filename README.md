@@ -54,7 +54,7 @@ Make sure CORS is enabled in LM Studio. In the **Developer** tab, enable **Allow
 
 For the **settings page**, no — model listing and load/unload controls run entirely in your browser, so LM Studio only needs to be reachable from the machine you are using to access the WordPress admin.
 
-For **actual AI requests** (text generation, embeddings, etc.), yes — those are made server-side by WordPress, so the host you configure must be reachable from the WordPress server.
+For **actual AI requests** (text generation, embeddings, etc.), it depends on how the plugin making the request is implemented. Server-side PHP calls require the WordPress server to reach LM Studio. Plugins that make AI requests from JavaScript in the browser work regardless of where WordPress is hosted, as long as the user's browser can reach LM Studio.
 
 ### Which model will be used?
 
