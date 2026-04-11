@@ -244,7 +244,10 @@ class LmStudioSettings {
 
 		$settings    = self::get_settings();
 		$model_order = isset( $settings['model_order'] ) ? $settings['model_order'] : array();
-		$api_key     = get_option( 'connectors_ai_lmstudio_api_key', '' );
+		$raw_api_key = get_option( 'connectors_ai_lmstudio_api_key', '' );
+		// Strip any non-Latin-1 characters (e.g. bullet points stored by a
+		// connectors UI that masked the sentinel value before submitting).
+		$api_key     = preg_replace( '/[^\x00-\xFF]/', '', $raw_api_key );
 
 		$nonce    = wp_create_nonce( self::NONCE_ACTION );
 		$ajax_url = admin_url( 'admin-ajax.php' ) . '?_wpnonce=' . $nonce;

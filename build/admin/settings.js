@@ -9,10 +9,17 @@
 		return window.aiProviderForLmStudioSettings;
 	}
 
+	function isUsableApiKey( key ) {
+		// HTTP header values must be Latin-1 (ByteString). Skip the key if it
+		// contains characters outside that range — e.g. bullet points (U+2022)
+		// that a connectors UI may have stored when masking the sentinel value.
+		return key && key !== 'lmstudio-local' && ! /[^\u0000-\u00FF]/.test( key );
+	}
+
 	async function lmFetch( path ) {
 		const settings = getSettings();
 		const headers  = {};
-		if ( settings.apiKey && settings.apiKey !== 'lmstudio-local' ) {
+		if ( isUsableApiKey( settings.apiKey ) ) {
 			headers['Authorization'] = 'Bearer ' + settings.apiKey;
 		}
 		const response = await fetch( settings.lmstudioHost + path, { headers } );
@@ -25,7 +32,7 @@
 	async function lmPost( path, data ) {
 		const settings = getSettings();
 		const headers  = { 'Content-Type': 'application/json' };
-		if ( settings.apiKey && settings.apiKey !== 'lmstudio-local' ) {
+		if ( isUsableApiKey( settings.apiKey ) ) {
 			headers['Authorization'] = 'Bearer ' + settings.apiKey;
 		}
 		const response = await fetch( settings.lmstudioHost + path, {
