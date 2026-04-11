@@ -264,29 +264,15 @@
 		container.replaceChildren( table );
 	}
 
-	async function syncModelsToServer( rawModels ) {
-		const settings = getSettings();
-		if ( ! settings.syncModelsUrl ) {
-			return;
-		}
-		await apiPost( settings.syncModelsUrl, {
-			models: JSON.stringify( rawModels ),
-		} ).catch( () => null );
-	}
-
 	async function loadModels( container ) {
 		container.replaceChildren(
 			el( 'p', { className: 'description', textContent: __( 'Loading…', 'ai-provider-for-lmstudio' ) } )
 		);
 
 		try {
-			const data      = await lmFetch( '/api/v1/models' );
-			const rawModels = data.models || [];
-			const models    = parseModels( rawModels );
+			const data   = await lmFetch( '/api/v1/models' );
+			const models = parseModels( data.models || [] );
 			buildTable( models, container, () => loadModels( container ) );
-
-			// Sync the model list to the server so PHP can use it.
-			syncModelsToServer( rawModels );
 		} catch ( err ) {
 			container.replaceChildren(
 				el( 'p', {
