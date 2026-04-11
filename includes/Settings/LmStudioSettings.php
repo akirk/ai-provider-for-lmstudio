@@ -8,9 +8,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-use AiProviderForLmStudio\Metadata\LmStudioModelMetadataDirectory;
 use AiProviderForLmStudio\Provider\LmStudioProvider;
-use WordPress\AiClient\AiClient;
 
 /**
  * Class for the LM Studio settings in the WordPress admin.
@@ -26,9 +24,6 @@ class LmStudioSettings {
 	private const OPTION_NAME        = 'ai_provider_for_lmstudio_settings';
 	private const PAGE_SLUG          = 'ai-provider-for-lmstudio';
 	private const SECTION_ID         = 'ai_provider_for_lmstudio_main';
-	private const AJAX_ACTION            = 'ai_provider_for_lmstudio_list_models';
-	private const AJAX_LOAD_ACTION       = 'ai_provider_for_lmstudio_load_model';
-	private const AJAX_UNLOAD_ACTION     = 'ai_provider_for_lmstudio_unload_model';
 	private const AJAX_SAVE_ORDER_ACTION = 'ai_provider_for_lmstudio_save_order';
 	private const NONCE_ACTION           = 'ai_provider_for_lmstudio_nonce';
 
@@ -41,9 +36,6 @@ class LmStudioSettings {
 		add_action( 'admin_init', array( $this, 'register_settings' ) );
 		add_action( 'admin_menu', array( $this, 'register_settings_screen' ) );
 		add_action( 'admin_enqueue_scripts', array( $this, 'enqueue_settings_script' ) );
-		add_action( 'wp_ajax_' . self::AJAX_ACTION, array( $this, 'ajax_list_models' ) );
-		add_action( 'wp_ajax_' . self::AJAX_LOAD_ACTION, array( $this, 'ajax_load_model' ) );
-		add_action( 'wp_ajax_' . self::AJAX_UNLOAD_ACTION, array( $this, 'ajax_unload_model' ) );
 		add_action( 'wp_ajax_' . self::AJAX_SAVE_ORDER_ACTION, array( $this, 'ajax_save_order' ) );
 	}
 
@@ -250,6 +242,10 @@ class LmStudioSettings {
 			true
 		);
 
+		$settings    = self::get_settings();
+		$model_order = isset( $settings['model_order'] ) ? $settings['model_order'] : array();
+		$api_key     = get_option( 'connectors_ai_lmstudio_api_key', '' );
+
 		$nonce    = wp_create_nonce( self::NONCE_ACTION );
 		$ajax_url = admin_url( 'admin-ajax.php' ) . '?_wpnonce=' . $nonce;
 
@@ -257,108 +253,12 @@ class LmStudioSettings {
 			'ai-provider-for-lmstudio-settings',
 			'aiProviderForLmStudioSettings',
 			array(
-				'listModelsUrl'  => esc_url( $ajax_url . '&action=' . self::AJAX_ACTION ),
-				'loadModelUrl'   => esc_url( $ajax_url . '&action=' . self::AJAX_LOAD_ACTION ),
-				'unloadModelUrl' => esc_url( $ajax_url . '&action=' . self::AJAX_UNLOAD_ACTION ),
-				'saveOrderUrl'   => esc_url( $ajax_url . '&action=' . self::AJAX_SAVE_ORDER_ACTION ),
+				'lmstudioHost' => rtrim( LmStudioProvider::url( '' ), '/' ),
+				'apiKey'       => $api_key,
+				'modelOrder'   => $model_order,
+				'saveOrderUrl' => esc_url( $ajax_url . '&action=' . self::AJAX_SAVE_ORDER_ACTION ),
 			)
 		);
-	}
-
-	/**
-	 * Handles the AJAX request to list available LM Studio models.
-	 *
-	 * @since 1.0.0
-	 */
-	public function ajax_list_models(): void {
-		check_ajax_referer( self::NONCE_ACTION );
-
-		if ( ! current_user_can( 'manage_options' ) ) {
-			wp_send_json_error( __( 'Insufficient permissions.', 'ai-provider-for-lmstudio' ), 403 );
-		}
-
-		$directory = $this->get_model_directory();
-		if ( is_wp_error( $directory ) ) {
-			wp_send_json_error( $directory->get_error_message(), 404 );
-		}
-
-		try {
-			wp_send_json_success( $directory->getAvailableModels() );
-		} catch ( \Throwable $e ) {
-			/* translators: %s: Error message. */
-			wp_send_json_error( sprintf( __( 'Could not list models — is LM Studio running? Error: %s', 'ai-provider-for-lmstudio' ), $e->getMessage() ), 500 );
-		}
-	}
-
-	/**
-	 * Handles the AJAX request to load a model in LM Studio.
-	 *
-	 * Makes a blocking request to LM Studio and returns success once the model
-	 * is fully loaded.
-	 *
-	 * @since 1.0.0
-	 */
-	public function ajax_load_model(): void {
-		check_ajax_referer( self::NONCE_ACTION );
-
-		if ( ! current_user_can( 'manage_options' ) ) {
-			wp_send_json_error( __( 'Insufficient permissions.', 'ai-provider-for-lmstudio' ), 403 );
-		}
-
-		$instance_id = isset( $_POST['instance_id'] ) ? sanitize_text_field( wp_unslash( $_POST['instance_id'] ) ) : '';
-		if ( '' === $instance_id ) {
-			wp_send_json_error( __( 'Missing instance ID.', 'ai-provider-for-lmstudio' ), 400 );
-		}
-
-		// phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged -- Intentionally extending execution time for model loading.
-		@set_time_limit( 300 );
-
-		$response = wp_remote_post(
-			LmStudioProvider::url( 'api/v1/models/load' ),
-			array(
-				'blocking' => true,
-				'timeout'  => 300,
-				'headers'  => array( 'Content-Type' => 'application/json' ),
-				'body'     => wp_json_encode( array( 'model' => $instance_id ) ),
-			)
-		);
-
-		if ( is_wp_error( $response ) ) {
-			wp_send_json_error( $response->get_error_message(), 500 );
-		}
-
-		wp_send_json_success();
-	}
-
-	/**
-	 * Handles the AJAX request to unload a model from LM Studio.
-	 *
-	 * @since 1.0.0
-	 */
-	public function ajax_unload_model(): void {
-		check_ajax_referer( self::NONCE_ACTION );
-
-		if ( ! current_user_can( 'manage_options' ) ) {
-			wp_send_json_error( __( 'Insufficient permissions.', 'ai-provider-for-lmstudio' ), 403 );
-		}
-
-		$instance_id = isset( $_POST['instance_id'] ) ? sanitize_text_field( wp_unslash( $_POST['instance_id'] ) ) : '';
-		if ( '' === $instance_id ) {
-			wp_send_json_error( __( 'Missing instance ID.', 'ai-provider-for-lmstudio' ), 400 );
-		}
-
-		$directory = $this->get_model_directory();
-		if ( is_wp_error( $directory ) ) {
-			wp_send_json_error( $directory->get_error_message(), 404 );
-		}
-
-		try {
-			$directory->unloadModel( $instance_id );
-			wp_send_json_success();
-		} catch ( \Throwable $e ) {
-			/* translators: %s: Error message. */
-			wp_send_json_error( sprintf( __( 'Could not unload model. Error: %s', 'ai-provider-for-lmstudio' ), $e->getMessage() ), 500 );
-		}
 	}
 
 	/**
@@ -400,30 +300,4 @@ class LmStudioSettings {
 		return (array) get_option( self::OPTION_NAME, array() );
 	}
 
-	/**
-	 * Returns the model metadata directory, or a WP_Error if unavailable.
-	 *
-	 * @since 1.0.0
-	 *
-	 * @return LmStudioModelMetadataDirectory|\WP_Error
-	 */
-	private function get_model_directory() {
-		$provider_id = 'lmstudio';
-		$registry    = AiClient::defaultRegistry();
-
-		if ( ! $registry->hasProvider( $provider_id ) ) {
-			return new \WP_Error( 'provider_not_found', __( 'AI provider not found.', 'ai-provider-for-lmstudio' ) );
-		}
-
-		$provider_classname = $registry->getProviderClassName( $provider_id );
-
-		// phpcs:ignore Generic.Commenting.DocComment.MissingShort
-		$directory = $provider_classname::modelMetadataDirectory();
-
-		if ( ! $directory instanceof LmStudioModelMetadataDirectory ) {
-			return new \WP_Error( 'unexpected_directory', __( 'Unexpected model directory type.', 'ai-provider-for-lmstudio' ) );
-		}
-
-		return $directory;
-	}
 }

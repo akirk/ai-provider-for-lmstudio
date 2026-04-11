@@ -9,13 +9,38 @@
 		return window.aiProviderForLmStudioSettings;
 	}
 
-	async function apiFetch( url ) {
-		const response = await fetch( url );
+	async function lmFetch( path ) {
+		const settings = getSettings();
+		const headers  = {};
+		if ( settings.apiKey && settings.apiKey !== 'lmstudio-local' ) {
+			headers['Authorization'] = 'Bearer ' + settings.apiKey;
+		}
+		const response = await fetch( settings.lmstudioHost + path, { headers } );
+		if ( ! response.ok ) {
+			throw new Error( response.statusText );
+		}
+		return response.json();
+	}
+
+	async function lmPost( path, data ) {
+		const settings = getSettings();
+		const headers  = { 'Content-Type': 'application/json' };
+		if ( settings.apiKey && settings.apiKey !== 'lmstudio-local' ) {
+			headers['Authorization'] = 'Bearer ' + settings.apiKey;
+		}
+		const response = await fetch( settings.lmstudioHost + path, {
+			method: 'POST',
+			headers,
+			body: JSON.stringify( data ),
+		} );
+		if ( ! response.ok ) {
+			throw new Error( response.statusText );
+		}
 		return response.json();
 	}
 
 	async function apiPost( url, data ) {
-		const body = new URLSearchParams( data );
+		const body     = new URLSearchParams( data );
 		const response = await fetch( url, {
 			method: 'POST',
 			headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
@@ -67,6 +92,37 @@
 			badges.push( __( 'Image gen', 'ai-provider-for-lmstudio' ) );
 		}
 		return badges.join( ', ' );
+	}
+
+	function getInstanceId( model ) {
+		if ( model.loaded_instances && model.loaded_instances.length > 0 && model.loaded_instances[ 0 ].instance_id ) {
+			return model.loaded_instances[ 0 ].instance_id;
+		}
+		return model.key;
+	}
+
+	function parseModels( rawModels ) {
+		const settings    = getSettings();
+		const modelOrder  = settings.modelOrder || [];
+
+		const models = rawModels.map( ( model ) => ( {
+			key:          model.key,
+			instance_id:  getInstanceId( model ),
+			display_name: model.display_name || model.key,
+			type:         model.type || 'llm',
+			capabilities: model.capabilities || {},
+			is_loaded:    model.loaded_instances && model.loaded_instances.length > 0,
+		} ) );
+
+		if ( modelOrder.length > 0 ) {
+			models.sort( ( a, b ) => {
+				const pa = modelOrder.indexOf( a.instance_id );
+				const pb = modelOrder.indexOf( b.instance_id );
+				return ( pa === -1 ? Infinity : pa ) - ( pb === -1 ? Infinity : pb );
+			} );
+		}
+
+		return models;
 	}
 
 	async function saveOrder( rows ) {
@@ -149,7 +205,6 @@
 				style: { color: isLoaded ? '#00a32a' : '#787c82' },
 			} );
 
-			// Load / Unload button
 			const btn     = el( 'button', {
 				type: 'button',
 				textContent: isLoaded
@@ -164,28 +219,29 @@
 			btn.addEventListener( 'click', async () => {
 				const instanceId = btn.dataset.instanceId;
 				const isUnload   = btn.dataset.action === 'unload';
-				const url        = isUnload ? settings.unloadModelUrl : settings.loadModelUrl;
 
 				btn.disabled    = true;
 				btn.textContent = isUnload
 					? __( 'Unloading…', 'ai-provider-for-lmstudio' )
 					: __( 'Loading…', 'ai-provider-for-lmstudio' );
 
-				const result = await apiPost( url, { instance_id: instanceId } ).catch( () => null );
-
-				if ( ! result || ! result.success ) {
+				try {
+					if ( isUnload ) {
+						await lmPost( '/api/v1/models/unload', { instance_id: instanceId } );
+					} else {
+						await lmPost( '/api/v1/models/load', { model: instanceId } );
+					}
+					onReload();
+				} catch ( err ) {
 					btn.disabled    = false;
 					btn.textContent = isUnload
 						? __( 'Unload', 'ai-provider-for-lmstudio' )
 						: __( 'Load', 'ai-provider-for-lmstudio' );
-					const errMsg = ( result && typeof result.data === 'string' )
-						? result.data
-						: __( 'Failed.', 'ai-provider-for-lmstudio' );
-					btnCell.appendChild( el( 'span', { textContent: ' ' + errMsg, style: { color: ERROR_COLOR } } ) );
-					return;
+					btnCell.appendChild( el( 'span', {
+						textContent: ' ' + ( err.message || __( 'Failed.', 'ai-provider-for-lmstudio' ) ),
+						style: { color: ERROR_COLOR },
+					} ) );
 				}
-
-				onReload();
 			} );
 
 			tbody.appendChild(
@@ -209,25 +265,22 @@
 	}
 
 	async function loadModels( container ) {
-		const settings = getSettings();
-
 		container.replaceChildren(
 			el( 'p', { className: 'description', textContent: __( 'Loading…', 'ai-provider-for-lmstudio' ) } )
 		);
 
-		const result = await apiFetch( settings.listModelsUrl ).catch( () => null );
-
-		if ( ! result || ! result.success ) {
-			const errMsg = ( result && typeof result.data === 'string' )
-				? result.data
-				: __( 'Could not connect to LM Studio — is the server running?', 'ai-provider-for-lmstudio' );
+		try {
+			const data = await lmFetch( '/api/v1/models' );
+			const models = parseModels( data.models || [] );
+			buildTable( models, container, () => loadModels( container ) );
+		} catch ( err ) {
 			container.replaceChildren(
-				el( 'p', { textContent: errMsg, style: { color: ERROR_COLOR } } )
+				el( 'p', {
+					textContent: __( 'Could not connect to LM Studio — is the server running?', 'ai-provider-for-lmstudio' ),
+					style: { color: ERROR_COLOR },
+				} )
 			);
-			return;
 		}
-
-		buildTable( result.data, container, () => loadModels( container ) );
 	}
 
 	document.addEventListener( 'DOMContentLoaded', () => {
