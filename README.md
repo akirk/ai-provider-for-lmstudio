@@ -37,9 +37,8 @@ This plugin is based on [Fueled/ai-provider-for-ollama](https://github.com/Fuele
 ## Installation
 
 1. Upload the plugin files to `/wp-content/plugins/ai-provider-for-lmstudio/`.
-2. Run `composer install` inside the plugin directory.
-3. Activate the plugin through the **Plugins** menu in WordPress.
-4. Go to **Settings > LM Studio** to configure the host URL and manage model loading.
+2. Activate the plugin through the **Plugins** menu in WordPress.
+3. Go to **Settings > LM Studio** to configure the host URL and manage model loading.
 
 ## Frequently Asked Questions
 

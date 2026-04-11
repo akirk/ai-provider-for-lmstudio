@@ -125,25 +125,19 @@ function load(): void {
 		return;
 	}
 
-	if ( ! file_exists( AI_PROVIDER_FOR_LMSTUDIO_PLUGIN_DIR . 'vendor/autoload.php' ) ) {
-		add_action(
-			'admin_notices',
-			static function () {
-				requirement_notice(
-					sprintf(
-						/* translators: %s: composer install command */
-						esc_html__( 'Your installation of the LM Studio Provider plugin is incomplete. Please run %s.', 'ai-provider-for-lmstudio' ),
-						'<code>composer install</code>'
-					)
-				);
-			},
-			10
-		);
-
-		return;
-	}
-
-	require_once AI_PROVIDER_FOR_LMSTUDIO_PLUGIN_DIR . 'vendor/autoload.php';
+	spl_autoload_register(
+		static function ( string $class ): void {
+			$prefix = 'AiProviderForLmStudio\\';
+			if ( strncmp( $class, $prefix, strlen( $prefix ) ) !== 0 ) {
+				return;
+			}
+			$relative = substr( $class, strlen( $prefix ) );
+			$file     = AI_PROVIDER_FOR_LMSTUDIO_PLUGIN_DIR . 'includes/' . str_replace( '\\', '/', $relative ) . '.php';
+			if ( file_exists( $file ) ) {
+				require_once $file;
+			}
+		}
+	);
 
 	$plugin = new Plugin();
 	$plugin->init();
