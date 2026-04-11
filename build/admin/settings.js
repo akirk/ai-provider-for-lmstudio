@@ -144,12 +144,12 @@
 		const table     = el( 'table', { className: 'wp-list-table widefat fixed striped', style: { marginBottom: '0.5em' } } );
 		const thead     = el( 'thead' );
 		const headerRow = el( 'tr', {}, [
-			el( 'th', { style: { width: '2em' } } ),
-			el( 'th', { textContent: __( 'Model', 'ai-provider-for-lmstudio' ) } ),
-			el( 'th', { textContent: __( 'Type', 'ai-provider-for-lmstudio' ), style: { width: '6em' } } ),
-			el( 'th', { textContent: __( 'Capabilities', 'ai-provider-for-lmstudio' ) } ),
-			el( 'th', { textContent: __( 'Status', 'ai-provider-for-lmstudio' ), style: { width: '8em' } } ),
-			el( 'th', { style: { width: '7em' } } ),
+			el( 'th', { className: 'lmstudio-col-handle' } ),
+			el( 'th', { textContent: __( 'Model', 'ai-provider-for-lmstudio' ), className: 'lmstudio-col-model' } ),
+			el( 'th', { textContent: __( 'Type', 'ai-provider-for-lmstudio' ), className: 'lmstudio-col-type' } ),
+			el( 'th', { textContent: __( 'Capabilities', 'ai-provider-for-lmstudio' ), className: 'lmstudio-col-capabilities' } ),
+			el( 'th', { textContent: __( 'Status', 'ai-provider-for-lmstudio' ), className: 'lmstudio-col-status' } ),
+			el( 'th', { className: 'lmstudio-col-action' } ),
 		] );
 		thead.appendChild( headerRow );
 		table.appendChild( thead );
@@ -177,21 +177,21 @@
 				draggedRow.style.opacity = '';
 			}
 			draggedRow = null;
-			tbody.querySelectorAll( 'tr' ).forEach( ( r ) => r.style.removeProperty( 'border-top' ) );
+			tbody.querySelectorAll( 'tr' ).forEach( ( r ) => r.classList.remove( 'lmstudio-drop-target' ) );
 		} );
 
 		tbody.addEventListener( 'dragover', ( e ) => {
 			e.preventDefault();
 			const target = e.target.closest( 'tr' );
-			tbody.querySelectorAll( 'tr' ).forEach( ( r ) => r.style.removeProperty( 'border-top' ) );
+			tbody.querySelectorAll( 'tr' ).forEach( ( r ) => r.classList.remove( 'lmstudio-drop-target' ) );
 			if ( target && target !== draggedRow ) {
-				target.style.borderTop = '2px solid #2271b1';
+				target.classList.add( 'lmstudio-drop-target' );
 			}
 		} );
 
 		tbody.addEventListener( 'drop', ( e ) => {
 			e.preventDefault();
-			tbody.querySelectorAll( 'tr' ).forEach( ( r ) => r.style.removeProperty( 'border-top' ) );
+			tbody.querySelectorAll( 'tr' ).forEach( ( r ) => r.classList.remove( 'lmstudio-drop-target' ) );
 			const target = e.target.closest( 'tr' );
 			if ( target && draggedRow && target !== draggedRow ) {
 				tbody.insertBefore( draggedRow, target );
@@ -221,7 +221,7 @@
 				'data-instance-id': model.instance_id,
 				'data-action': isLoaded ? 'unload' : 'load',
 			} );
-			const btnCell = td( [ btn ] );
+			const btnCell = td( [ btn ], { className: 'lmstudio-col-action' } );
 
 			btn.addEventListener( 'click', async () => {
 				const instanceId = btn.dataset.instanceId;
@@ -253,15 +253,15 @@
 
 			tbody.appendChild(
 				el( 'tr', { 'data-instance-id': model.instance_id, draggable: 'true' }, [
-					td( [ el( 'span', { textContent: '⠿', style: { cursor: 'grab', color: '#787c82' } } ) ] ),
+					td( [ el( 'span', { textContent: '⠿', style: { color: '#787c82' } } ) ], { className: 'lmstudio-col-handle' } ),
 					td( [
 						el( 'strong', { textContent: model.display_name } ),
 						el( 'br' ),
 						el( 'code', { style: { fontSize: '0.85em' }, textContent: model.instance_id } ),
-					] ),
-					td( [ document.createTextNode( typeName ) ] ),
-					td( [ document.createTextNode( capabilityBadges( model ) ) ] ),
-					td( [ statusDot ] ),
+					], { className: 'lmstudio-col-model' } ),
+					td( [ document.createTextNode( typeName ) ], { className: 'lmstudio-col-type' } ),
+					td( [ document.createTextNode( capabilityBadges( model ) ) ], { className: 'lmstudio-col-capabilities' } ),
+					td( [ statusDot ], { className: 'lmstudio-col-status' } ),
 					btnCell,
 				] )
 			);

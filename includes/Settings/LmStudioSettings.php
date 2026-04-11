@@ -234,6 +234,13 @@ class LmStudioSettings {
 		$dependencies = isset( $asset['dependencies'] ) ? $asset['dependencies'] : array();
 		$version      = isset( $asset['version'] ) ? $asset['version'] : false;
 
+		wp_enqueue_style(
+			'ai-provider-for-lmstudio-settings',
+			plugins_url( 'build/admin/settings.css', $plugin_dir . 'plugin.php' ),
+			array(),
+			$version
+		);
+
 		wp_enqueue_script(
 			'ai-provider-for-lmstudio-settings',
 			plugins_url( 'build/admin/settings.js', $plugin_dir . 'plugin.php' ),

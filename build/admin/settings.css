@@ -1,0 +1,69 @@
+#lmstudio-models-container .lmstudio-col-handle { width: 2em; cursor: grab; }
+
+#lmstudio-models-container .lmstudio-drop-target td,
+#lmstudio-models-container .lmstudio-drop-target th {
+	border-top: 2px solid #2271b1 !important;
+}
+#lmstudio-models-container .lmstudio-col-type   { width: 6em; }
+#lmstudio-models-container .lmstudio-col-status { width: 8em; }
+#lmstudio-models-container .lmstudio-col-action { width: 7em; }
+
+@media screen and (max-width: 782px) {
+	#lmstudio-models-container .wp-list-table thead {
+		display: none;
+	}
+
+	#lmstudio-models-container .wp-list-table tbody tr {
+		display: flex;
+		flex-wrap: wrap;
+		align-items: flex-start;
+		gap: 4px 8px;
+		padding: 8px;
+	}
+
+	#lmstudio-models-container .wp-list-table td {
+		padding: 2px 0;
+		border: none;
+		box-shadow: none;
+	}
+
+	#lmstudio-models-container .lmstudio-col-handle {
+		display: none;
+	}
+
+	/* Model name + ID take up the first line, growing to fill available space */
+	#lmstudio-models-container .lmstudio-col-model {
+		flex: 1 1 auto;
+		min-width: 0;
+		order: 1;
+	}
+
+	/* Button sits at the end of the first line */
+	#lmstudio-models-container .lmstudio-col-action {
+		flex: 0 0 auto;
+		order: 2;
+	}
+
+	/* Force a line break between the button and the metadata cells */
+	#lmstudio-models-container .wp-list-table tbody tr::after {
+		content: '';
+		flex-basis: 100%;
+		order: 2;
+		height: 0;
+	}
+
+	/* Type, capabilities, status flow together on the second line */
+	#lmstudio-models-container .lmstudio-col-type,
+	#lmstudio-models-container .lmstudio-col-capabilities,
+	#lmstudio-models-container .lmstudio-col-status {
+		order: 3;
+		flex: 0 0 auto;
+		font-size: 0.9em;
+		color: #646970;
+	}
+
+	#lmstudio-models-container .lmstudio-col-capabilities::before,
+	#lmstudio-models-container .lmstudio-col-status::before {
+		content: '· ';
+	}
+}
