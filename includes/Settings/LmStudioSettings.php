@@ -24,8 +24,9 @@ class LmStudioSettings {
 	private const OPTION_NAME        = 'ai_provider_for_lmstudio_settings';
 	private const PAGE_SLUG          = 'ai-provider-for-lmstudio';
 	private const SECTION_ID         = 'ai_provider_for_lmstudio_main';
-	private const AJAX_SAVE_ORDER_ACTION = 'ai_provider_for_lmstudio_save_order';
-	private const NONCE_ACTION           = 'ai_provider_for_lmstudio_nonce';
+	private const AJAX_SAVE_ORDER_ACTION  = 'ai_provider_for_lmstudio_save_order';
+	private const AJAX_SYNC_MODELS_ACTION = 'ai_provider_for_lmstudio_sync_models';
+	private const NONCE_ACTION            = 'ai_provider_for_lmstudio_nonce';
 
 	/**
 	 * Initializes the settings.
@@ -37,6 +38,7 @@ class LmStudioSettings {
 		add_action( 'admin_menu', array( $this, 'register_settings_screen' ) );
 		add_action( 'admin_enqueue_scripts', array( $this, 'enqueue_settings_script' ) );
 		add_action( 'wp_ajax_' . self::AJAX_SAVE_ORDER_ACTION, array( $this, 'ajax_save_order' ) );
+		add_action( 'wp_ajax_' . self::AJAX_SYNC_MODELS_ACTION, array( $this, 'ajax_sync_models' ) );
 	}
 
 	/**
@@ -218,12 +220,19 @@ class LmStudioSettings {
 	/**
 	 * Enqueues the settings page script.
 	 *
+	 * On the plugin's own settings page the full UI script is loaded. On all
+	 * other admin pages a lightweight inline script silently syncs the LM Studio
+	 * model list from the browser so that the PHP-side model directory stays
+	 * up-to-date even when the server cannot reach LM Studio directly.
+	 *
 	 * @since 1.0.0
 	 *
 	 * @param string $hook_suffix The current admin page hook suffix.
 	 */
 	public function enqueue_settings_script( string $hook_suffix ): void {
+		// On non-settings admin pages, enqueue a lightweight background sync.
 		if ( 'settings_page_' . self::PAGE_SLUG !== $hook_suffix ) {
+			$this->enqueue_background_sync_script();
 			return;
 		}
 
@@ -256,9 +265,39 @@ class LmStudioSettings {
 				'lmstudioHost' => rtrim( LmStudioProvider::url( '' ), '/' ),
 				'apiKey'       => $api_key,
 				'modelOrder'   => $model_order,
-				'saveOrderUrl' => esc_url( $ajax_url . '&action=' . self::AJAX_SAVE_ORDER_ACTION ),
+				'saveOrderUrl'  => $ajax_url . '&action=' . self::AJAX_SAVE_ORDER_ACTION,
+				'syncModelsUrl' => $ajax_url . '&action=' . self::AJAX_SYNC_MODELS_ACTION,
 			)
 		);
+	}
+
+	/**
+	 * Enqueues a lightweight inline script that syncs the LM Studio model list
+	 * from the browser on any admin page.
+	 *
+	 * @since 1.0.0
+	 */
+	private function enqueue_background_sync_script(): void {
+		if ( ! current_user_can( 'manage_options' ) ) {
+			return;
+		}
+
+		$nonce    = wp_create_nonce( self::NONCE_ACTION );
+		$ajax_url = admin_url( 'admin-ajax.php' ) . '?_wpnonce=' . $nonce;
+		$host     = rtrim( LmStudioProvider::url( '' ), '/' );
+		$sync_url = $ajax_url . '&action=' . self::AJAX_SYNC_MODELS_ACTION;
+
+		wp_add_inline_script( 'common', sprintf(
+			'(function(){' .
+				'fetch(%s+"/api/v1/models").then(function(r){return r.json()}).then(function(d){' .
+					'if(!d.models)return;' .
+					'var b=new URLSearchParams({models:JSON.stringify(d.models)});' .
+					'fetch(%s,{method:"POST",headers:{"Content-Type":"application/x-www-form-urlencoded"},body:b})' .
+				'}).catch(function(){})' .
+			'})();',
+			wp_json_encode( $host ),
+			wp_json_encode( $sync_url )
+		) );
 	}
 
 	/**
@@ -287,6 +326,50 @@ class LmStudioSettings {
 		update_option( self::OPTION_NAME, $settings );
 
 		wp_send_json_success();
+	}
+
+	/**
+	 * Handles the AJAX request to sync the model list from the browser.
+	 *
+	 * The browser can reach LM Studio on localhost even when the PHP server
+	 * cannot. This endpoint receives the model list fetched by JavaScript and
+	 * stores it so the PHP model metadata directory can use it.
+	 *
+	 * @since 1.0.0
+	 */
+	public function ajax_sync_models(): void {
+		check_ajax_referer( self::NONCE_ACTION );
+
+		if ( ! current_user_can( 'manage_options' ) ) {
+			wp_send_json_error( __( 'Insufficient permissions.', 'ai-provider-for-lmstudio' ), 403 );
+		}
+
+		$raw    = isset( $_POST['models'] ) ? wp_unslash( $_POST['models'] ) : '[]'; // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- JSON decoded and sanitized below.
+		$models = json_decode( $raw, true );
+
+		if ( ! is_array( $models ) ) {
+			wp_send_json_error( __( 'Invalid model data.', 'ai-provider-for-lmstudio' ), 400 );
+		}
+
+		// Sanitize each model entry to only keep known keys.
+		$clean = array();
+		foreach ( $models as $model ) {
+			if ( ! is_array( $model ) || empty( $model['key'] ) ) {
+				continue;
+			}
+			$clean[] = array(
+				'key'              => sanitize_text_field( $model['key'] ),
+				'type'             => isset( $model['type'] ) ? sanitize_text_field( $model['type'] ) : 'llm',
+				'display_name'     => isset( $model['display_name'] ) ? sanitize_text_field( $model['display_name'] ) : $model['key'],
+				'publisher'        => isset( $model['publisher'] ) ? sanitize_text_field( $model['publisher'] ) : '',
+				'capabilities'     => isset( $model['capabilities'] ) && is_array( $model['capabilities'] ) ? $model['capabilities'] : array(),
+				'loaded_instances' => isset( $model['loaded_instances'] ) && is_array( $model['loaded_instances'] ) ? $model['loaded_instances'] : array(),
+			);
+		}
+
+		update_option( \AiProviderForLmStudio\Metadata\LmStudioModelMetadataDirectory::MODELS_CACHE_OPTION, $clean, false );
+
+		wp_send_json_success( array( 'count' => count( $clean ) ) );
 	}
 
 	/**

@@ -233,14 +233,46 @@ class LmStudioModelMetadataDirectory extends AbstractApiBasedModelMetadataDirect
 	}
 
 	/**
-	 * Fetches all downloaded models from the LM Studio native API.
+	 * The option name used to cache the model list synced from the browser.
+	 *
+	 * Because LM Studio typically runs on the user's local machine while
+	 * WordPress may be hosted remotely, the PHP server often cannot reach
+	 * the LM Studio API directly. Instead, the browser (which *can* reach
+	 * localhost) fetches the model list and stores it here via AJAX.
+	 *
+	 * @since 1.0.0
+	 */
+	public const MODELS_CACHE_OPTION = 'ai_provider_for_lmstudio_models_cache';
+
+	/**
+	 * Fetches all downloaded models, preferring the browser-synced cache.
+	 *
+	 * Falls back to a direct HTTP request when no cache exists (e.g. when
+	 * LM Studio runs on the same host as WordPress).
+	 *
+	 * @since 1.0.0
+	 *
+	 * @return list<LmStudioModelEntry>
+	 * @throws \Throwable On HTTP or parse failure when no cache is available.
+	 */
+	private function fetchModels(): array {
+		$cached = get_option( self::MODELS_CACHE_OPTION, array() );
+		if ( ! empty( $cached ) && is_array( $cached ) ) {
+			return $cached;
+		}
+
+		return $this->fetchModelsViaHttp();
+	}
+
+	/**
+	 * Fetches models directly from the LM Studio native API over HTTP.
 	 *
 	 * @since 1.0.0
 	 *
 	 * @return list<LmStudioModelEntry>
 	 * @throws \Throwable On HTTP or parse failure.
 	 */
-	private function fetchModels(): array {
+	private function fetchModelsViaHttp(): array {
 		$request  = $this->createRequest( HttpMethodEnum::GET(), 'api/v1/models' );
 		$request  = $this->getRequestAuthentication()->authenticateRequest( $request );
 		$response = $this->getHttpTransporter()->send( $request );

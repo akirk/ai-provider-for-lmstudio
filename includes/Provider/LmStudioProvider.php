@@ -10,7 +10,6 @@ use AiProviderForLmStudio\Models\LmStudioTextGenerationModel;
 use WordPress\AiClient\AiClient;
 use WordPress\AiClient\Common\Exception\RuntimeException;
 use WordPress\AiClient\Providers\ApiBasedImplementation\AbstractApiProvider;
-use WordPress\AiClient\Providers\ApiBasedImplementation\ListModelsApiBasedProviderAvailability;
 use WordPress\AiClient\Providers\Contracts\ModelMetadataDirectoryInterface;
 use WordPress\AiClient\Providers\Contracts\ProviderAvailabilityInterface;
 use WordPress\AiClient\Providers\DTO\ProviderMetadata;
@@ -102,9 +101,7 @@ class LmStudioProvider extends AbstractApiProvider {
 	 * @since 1.0.0
 	 */
 	protected static function createProviderAvailability(): ProviderAvailabilityInterface {
-		return new ListModelsApiBasedProviderAvailability(
-			static::modelMetadataDirectory()
-		);
+		return new LmStudioProviderAvailability();
 	}
 
 	/**
