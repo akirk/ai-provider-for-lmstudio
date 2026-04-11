@@ -46,6 +46,14 @@ This plugin is based on [Fueled/ai-provider-for-ollama](https://github.com/Fuele
 
 Open LM Studio, go to the **Developer** tab, and click **Start Server**. The default port is `1234`.
 
+### Why can't the settings page see my models?
+
+Make sure CORS is enabled in LM Studio. In the **Developer** tab, enable **Allow requests from any origin** (or add your WordPress admin URL to the allowed origins). Without this, your browser will block requests from the WordPress admin to `localhost:1234`.
+
+### Is this plugin suitable for production sites?
+
+This plugin is designed for **local WordPress development**. The settings page fetches model data directly from LM Studio in your browser, which means it works when your WordPress site and LM Studio are both running on the same machine. It is not suited for WordPress sites hosted on remote servers, since those cannot reach a local LM Studio instance.
+
 ### Which model will be used?
 
 You can change the priority order on **Settings > LM Studio** by drag and drop. Also, only loaded models will be used, so make sure to load the model you want to use, either through the LM Studio interface or the plugin settings page.
