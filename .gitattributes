@@ -1,0 +1,5 @@
+.claude/ export-ignore
+.git/ export-ignore
+.gitattributes export-ignore
+.gitignore export-ignore
+DEV-NOTES.md export-ignore
