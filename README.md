@@ -32,7 +32,7 @@ This plugin was initially based on [Fueled/ai-provider-for-ollama](https://githu
 - Optional API key support for LM Studio instances with authentication enabled
 - Host URL configurable via settings or the `LMSTUDIO_HOST` environment variable
 
-**Development of this plugin is done [on GitHub](https://github.com/akirk/ai-provider-for-lmstudio). Pull requests welcome. Please see [issues](https://github.com/akirk/ai-provider-for-lmstudio/issues) reported there before going to the plugin forum. Developer notes and architectural findings are documented in [DEV-NOTES.md](DEV-NOTES.md).**
+**Development of this plugin is done [on GitHub](https://github.com/akirk/ai-provider-for-lmstudio). Pull requests welcome. Please see [issues](https://github.com/akirk/ai-provider-for-lmstudio/issues) reported there before going to the plugin forum.**
 
 ## Installation
 
