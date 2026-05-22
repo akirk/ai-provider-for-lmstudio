@@ -51,6 +51,7 @@ class Plugin {
 	public function init(): void {
 		add_action( 'init', array( $this, 'register_provider' ), 5 );
 		add_action( 'init', array( $this, 'initialize_settings' ) );
+		add_action( 'wp_ai_provider_browser_status_scripts', array( $this, 'enqueue_browser_status_script' ) );
 		add_filter( 'plugin_action_links_' . plugin_basename( AI_PROVIDER_FOR_LMSTUDIO_PLUGIN_FILE ), array( $this, 'plugin_action_links' ) );
 		add_filter( 'http_request_host_is_external', array( $this, 'allow_localhost_requests' ), 10, 3 );
 		add_filter( 'http_allowed_safe_ports', array( $this, 'allow_lmstudio_ports' ) );
@@ -126,6 +127,49 @@ class Plugin {
 	public function initialize_settings(): void {
 		$settings = new LmStudioSettings();
 		$settings->init();
+	}
+
+	/**
+	 * Enqueues the browser-side provider status checker.
+	 *
+	 * Consumers call the `wp_ai_provider_browser_status_scripts` action on pages
+	 * where they need local/server provider status from the current browser.
+	 *
+	 * @since 1.0.0
+	 */
+	public function enqueue_browser_status_script(): void {
+		$handle = 'ai-provider-for-lmstudio-browser-status';
+
+		if ( wp_script_is( $handle, 'enqueued' ) ) {
+			return;
+		}
+
+		$plugin_dir = AI_PROVIDER_FOR_LMSTUDIO_PLUGIN_DIR;
+		$asset_file = $plugin_dir . 'build/browser-status.asset.php';
+		$asset      = file_exists( $asset_file ) ? require $asset_file : array(); // phpcs:ignore WordPressVIPMinimum.Files.IncludingFile.UsingVariable -- Asset file path is built from a known constant.
+
+		$dependencies = isset( $asset['dependencies'] ) ? $asset['dependencies'] : array();
+		$version      = isset( $asset['version'] ) ? $asset['version'] : false;
+
+		wp_enqueue_script(
+			$handle,
+			plugins_url( 'build/browser-status.js', AI_PROVIDER_FOR_LMSTUDIO_PLUGIN_FILE ),
+			$dependencies,
+			$version,
+			true
+		);
+
+		$raw_api_key = get_option( self::CONNECTOR_OPTION, '' );
+		$api_key     = preg_replace( '/[^\x00-\xFF]/', '', $raw_api_key );
+
+		wp_localize_script(
+			$handle,
+			'wpAiLmStudioBrowserStatus',
+			array(
+				'endpoint' => rtrim( LmStudioProvider::url( '' ), '/' ),
+				'apiKey'   => $api_key,
+			)
+		);
 	}
 
 	/**
