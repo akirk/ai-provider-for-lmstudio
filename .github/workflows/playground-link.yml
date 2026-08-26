@@ -1,0 +1,69 @@
+name: Playground link
+
+on:
+  pull_request:
+    types:
+      - opened
+      - synchronize
+      - reopened
+
+permissions:
+  contents: read
+
+concurrency:
+  group: playground-link-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  update-pr-description:
+    if: github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Add Playground link to PR description
+        uses: actions/github-script@v9
+        env:
+          HEAD_REF: ${{ github.event.pull_request.head.ref }}
+        with:
+          script: |
+            const fs = require('fs');
+            const markerStart = '<!-- playground-link:start -->';
+            const markerEnd = '<!-- playground-link:end -->';
+            const headRef = process.env.HEAD_REF;
+
+            // There is no build step, so the blueprint from the repository can be
+            // used as is; only the branch this plugin installs from is swapped for
+            // the PR branch. Other plugins in the blueprint keep their refs.
+            const repoUrl = `https://github.com/${context.repo.owner}/${context.repo.repo}`;
+            const blueprint = JSON.parse(fs.readFileSync('blueprint.json', 'utf8'));
+            for (const step of blueprint.steps || []) {
+              if (step.step === 'installPlugin' && step.pluginData?.resource === 'git:directory' && step.pluginData.url === repoUrl) {
+                step.pluginData.ref = headRef;
+                step.pluginData.refType = 'branch';
+              }
+            }
+            const playgroundUrl = 'https://playground.wordpress.net/#' + encodeURIComponent(JSON.stringify(blueprint));
+
+            const playgroundSection = [
+              markerStart,
+              '## WordPress Playground',
+              '',
+              `[Test this PR in WordPress Playground](${playgroundUrl})`,
+              '',
+              `The blueprint installs the plugin from the \`${headRef}\` branch.`,
+              markerEnd,
+            ].join('\n');
+
+            const { owner, repo } = context.repo;
+            const pull_number = context.issue.number;
+            const currentBody = context.payload.pull_request.body || '';
+            const existingSection = /<!-- playground-link:start -->[\s\S]*?<!-- playground-link:end -->/;
+            const body = existingSection.test(currentBody)
+              ? currentBody.replace(existingSection, playgroundSection)
+              : [currentBody.trimEnd(), playgroundSection].filter(Boolean).join('\n\n');
+
+            await github.rest.pulls.update({ owner, repo, pull_number, body });

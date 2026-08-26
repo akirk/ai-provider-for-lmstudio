@@ -4,6 +4,7 @@
 	const { __ } = window.wp.i18n;
 
 	const ERROR_COLOR = '#d63638';
+	const RETRY_INTERVAL = 3000;
 
 	function getSettings() {
 		return window.aiProviderForLmStudioSettings;
@@ -22,7 +23,10 @@
 		if ( isUsableApiKey( settings.apiKey ) ) {
 			headers['Authorization'] = 'Bearer ' + settings.apiKey;
 		}
-		const response = await fetch( settings.lmstudioHost + path, { headers } );
+		const response = await fetch( settings.lmstudioHost + path, {
+			headers,
+			signal: AbortSignal.timeout( RETRY_INTERVAL ),
+		} );
 		if ( ! response.ok ) {
 			throw new Error( response.statusText );
 		}
@@ -271,22 +275,45 @@
 		container.replaceChildren( table );
 	}
 
-	async function loadModels( container ) {
-		container.replaceChildren(
-			el( 'p', { className: 'description', textContent: __( 'Loading…', 'ai-provider-for-lmstudio' ) } )
-		);
+	let retryTimer = null;
+
+	function scheduleRetry( container ) {
+		clearTimeout( retryTimer );
+		retryTimer = setTimeout( () => {
+			retryTimer = null;
+			// Do not poll a hidden tab; resume when it becomes visible again.
+			if ( document.hidden ) {
+				document.addEventListener( 'visibilitychange', () => loadModels( container, true ), { once: true } );
+				return;
+			}
+			loadModels( container, true );
+		}, RETRY_INTERVAL );
+	}
+
+	async function loadModels( container, isRetry = false ) {
+		if ( ! isRetry ) {
+			container.replaceChildren(
+				el( 'p', { className: 'description', textContent: __( 'Loading…', 'ai-provider-for-lmstudio' ) } )
+			);
+		}
 
 		try {
 			const data   = await lmFetch( '/api/v1/models' );
 			const models = parseModels( data.models || [] );
 			buildTable( models, container, () => loadModels( container ) );
 		} catch ( err ) {
+			// Keep polling so the list appears as soon as LM Studio is started.
 			container.replaceChildren(
 				el( 'p', {
 					textContent: __( 'Could not connect to LM Studio — is the server running?', 'ai-provider-for-lmstudio' ),
 					style: { color: ERROR_COLOR },
+				} ),
+				el( 'p', {
+					className: 'description',
+					textContent: __( 'Waiting for LM Studio to become reachable…', 'ai-provider-for-lmstudio' ),
 				} )
 			);
+			scheduleRetry( container );
 		}
 	}
 

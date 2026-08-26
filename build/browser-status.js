@@ -144,13 +144,24 @@
 			id,
 			name: model.display_name || id,
 			type: model.type || 'llm',
-			loaded: !! ( model.loaded_instances && model.loaded_instances.length > 0 ),
+			loaded: isLoaded( model ),
 			capabilities: getCapabilities( model ),
 		};
 	}
 
+	function isLoaded( model ) {
+		return !! ( model.loaded_instances && model.loaded_instances.length > 0 );
+	}
+
+	// Every downloaded LLM is usable: LM Studio loads a model just-in-time on
+	// its first request and unloads idle ones, so "loaded right now" is not a
+	// useful availability signal. Loaded models are listed first.
 	function isUsableTextModel( model ) {
-		return model.type !== 'embedding' && model.loaded_instances && model.loaded_instances.length > 0;
+		return model.type !== 'embedding';
+	}
+
+	function byLoadedFirst( a, b ) {
+		return Number( isLoaded( b ) ) - Number( isLoaded( a ) );
 	}
 
 	const registry = getRegistry();
@@ -161,7 +172,7 @@
 		const data = await fetchJson( endpoint, '/api/v1/models', apiKey );
 		const rawModels = Array.isArray( data.models ) ? data.models : [];
 		const allModels = rawModels.map( toBrowserModel );
-		const models = rawModels.filter( isUsableTextModel ).map( toBrowserModel );
+		const models = rawModels.filter( isUsableTextModel ).sort( byLoadedFirst ).map( toBrowserModel );
 
 		return {
 			providerId: 'lmstudio',
@@ -171,6 +182,7 @@
 			models,
 			allModels,
 			modelCount: models.length,
+			loadedModelCount: models.filter( ( model ) => model.loaded ).length,
 			downloadedModelCount: allModels.length,
 		};
 	} );

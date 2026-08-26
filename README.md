@@ -5,10 +5,12 @@
 - Requires at least: 7.0
 - Tested up to: 7.0
 - Requires PHP: 7.4
-- Stable tag: 1.0.0
+- Stable tag: 1.1.0
 - License: GPL-2.0-or-later
 
 LM Studio provider for the WordPress AI Client.
+
+[Try it in WordPress Playground](https://playground.wordpress.net/?blueprint-url=https://raw.githubusercontent.com/akirk/ai-provider-for-lmstudio/refs/heads/main/blueprint.json) — installs the plugin from the `main` branch. Pull requests get a link to their own branch added to their description automatically.
 
 ## Description
 
@@ -54,9 +56,11 @@ Make sure CORS is enabled in LM Studio. In the **Developer** tab, enable **Allow
 
 Yes, but plugins that use the AI client need to make their requests from JavaScript in the browser rather than from PHP on the server. Otherwise the WordPress server would need a network path to your local LM Studio instance, which is typically not available on hosted sites.
 
+The plugin reports LM Studio as configured to WordPress only when the server itself can reach it, so on a hosted site the **Connections** page will show LM Studio as not connected. That is expected: it reflects what PHP can do. Plugins that talk to LM Studio from the browser check reachability themselves via the `wp_ai_provider_browser_status_scripts` action, which loads a script exposing `window.wpAiProviderBrowserStatus.check('lmstudio')`.
+
 ### Which model will be used?
 
-You can change the priority order on **Settings > LM Studio** by drag and drop. Also, only loaded models will be used, so make sure to load the model you want to use, either through the LM Studio interface or the plugin settings page.
+You can change the priority order on **Settings > LM Studio** by drag and drop. Every downloaded model is available; LM Studio loads it on first use if it is not loaded yet. Models that are currently loaded are listed first.
 
 ### How do I change the LM Studio host URL?
 
@@ -67,7 +71,7 @@ By default the plugin connects to `http://localhost:1234`. You can change this i
 
 ### Do I need an API key?
 
-No. For local LM Studio instances with authentication disabled, no API key is needed — the plugin handles this automatically and LM Studio shows as connected on the WordPress Connections page.
+No. For local LM Studio instances with authentication disabled, no API key is needed — the plugin handles this automatically and LM Studio shows as connected on the WordPress Connections page whenever the server can reach it.
 
 If you have enabled authentication in LM Studio's server settings, enter your API key on the WordPress **Connections** page (`/wp-admin/options-connectors.php`).
 
@@ -80,6 +84,11 @@ Yes. LM Studio marks embedding models with `type: "embedding"` in its native API
 Yes, for models that LM Studio reports with `capabilities.image_generation: true`. They are registered as a separate entry with the `imageGeneration` capability.
 
 ## Changelog
+
+### 1.1.0
+- Report LM Studio as configured only when PHP can actually reach it (1s probe, cached for a minute) instead of unconditionally
+- Register every downloaded model, not only loaded ones, since LM Studio loads models just-in-time; loaded models are listed first
+- Browser status checker likewise reports downloaded models and adds `loadedModelCount`
 
 ### 1.0.0
 - Initial release
