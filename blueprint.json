@@ -2,7 +2,7 @@
 	"$schema": "https://playground.wordpress.net/blueprint-schema.json",
 	"meta": {
 		"title": "AI Provider for LM Studio",
-		"description": "LM Studio provider for the WordPress AI Client (git version)",
+		"description": "LM Studio provider for the WordPress AI Client (git version), with AI Assistant installed but not activated",
 		"author": "Alex Kirk"
 	},
 	"login": true,
@@ -17,6 +17,19 @@
 			},
 			"options": {
 				"targetFolderName": "ai-provider-for-lmstudio"
+			}
+		},
+		{
+			"step": "installPlugin",
+			"pluginData": {
+				"resource": "git:directory",
+				"url": "https://github.com/akirk/ai-assistant",
+				"ref": "dist/main",
+				"refType": "branch"
+			},
+			"options": {
+				"activate": false,
+				"targetFolderName": "ai-assistant"
 			}
 		}
 	]

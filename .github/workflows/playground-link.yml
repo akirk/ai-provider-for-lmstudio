@@ -36,10 +36,12 @@ jobs:
             const headRef = process.env.HEAD_REF;
 
             // There is no build step, so the blueprint from the repository can be
-            // used as is; only the branch it installs from is swapped for the PR branch.
+            // used as is; only the branch this plugin installs from is swapped for
+            // the PR branch. Other plugins in the blueprint keep their refs.
+            const repoUrl = `https://github.com/${context.repo.owner}/${context.repo.repo}`;
             const blueprint = JSON.parse(fs.readFileSync('blueprint.json', 'utf8'));
             for (const step of blueprint.steps || []) {
-              if (step.step === 'installPlugin' && step.pluginData?.resource === 'git:directory' && 'ref' in step.pluginData) {
+              if (step.step === 'installPlugin' && step.pluginData?.resource === 'git:directory' && step.pluginData.url === repoUrl) {
                 step.pluginData.ref = headRef;
                 step.pluginData.refType = 'branch';
               }
