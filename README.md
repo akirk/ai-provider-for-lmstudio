@@ -10,6 +10,8 @@
 
 LM Studio provider for the WordPress AI Client.
 
+[Try it in WordPress Playground](https://playground.wordpress.net/?blueprint-url=https://raw.githubusercontent.com/akirk/ai-provider-for-lmstudio/refs/heads/main/blueprint.json) — installs the plugin from the `main` branch. Pull requests get a link to their own branch added to their description automatically.
+
 ## Description
 
 This plugin integrates [LM Studio](https://lmstudio.ai/) with the WordPress AI Client (WordPress 7.0+). It lets WordPress sites use large language models running locally in LM Studio for text generation, embeddings, and image generation.
