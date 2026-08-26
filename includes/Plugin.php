@@ -40,9 +40,11 @@ class Plugin {
 	 * Sentinel value stored when no real API key is configured.
 	 *
 	 * LM Studio does not require a key for local use. This non-empty placeholder
-	 * tells the connectors UI that the provider is already "connected", avoiding
-	 * a broken save-button state. Requests to LM Studio always succeed regardless
-	 * of the bearer token value when authentication is disabled in LM Studio.
+	 * keeps the connectors UI from treating the provider as missing a key, avoiding
+	 * a broken save-button state. Whether it shows as "connected" is decided by
+	 * {@see \AiProviderForLmStudio\Provider\LmStudioProviderAvailability}, i.e.
+	 * by whether PHP can reach LM Studio. Requests to LM Studio always succeed
+	 * regardless of the bearer token value when authentication is disabled.
 	 *
 	 * @since 1.0.0
 	 */

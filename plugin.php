@@ -5,7 +5,7 @@
  * Description:       LM Studio provider for the WordPress AI Client.
  * Requires at least: 7.0
  * Requires PHP:      7.4
- * Version:           1.0.0
+ * Version:           1.1.0
  * Author:            Alex Kirk
  * Author URI:        https://alex.kirk.at/
  * License:           GPL-2.0-or-later

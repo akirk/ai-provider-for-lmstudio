@@ -5,6 +5,7 @@ declare( strict_types=1 );
 namespace AiProviderForLmStudio\Metadata;
 
 use AiProviderForLmStudio\Http\NoOpRequestAuthentication;
+use AiProviderForLmStudio\Provider\LmStudioProviderAvailability;
 use AiProviderForLmStudio\Provider\LmStudioProvider;
 use AiProviderForLmStudio\Settings\LmStudioSettings;
 use WordPress\AiClient\Messages\Enums\ModalityEnum;
@@ -24,8 +25,10 @@ use WordPress\AiClient\Providers\Models\Enums\OptionEnum;
  * Class for the LM Studio model metadata directory.
  *
  * Uses the LM Studio native /api/v1/models endpoint for richer model data,
- * including type and capability detection. Only loaded models are registered
- * with the AI client.
+ * including type and capability detection. Every downloaded LLM is registered:
+ * LM Studio loads a model just-in-time on its first request, and it unloads
+ * idle models after a while, so "currently loaded" says nothing about whether
+ * a model can be used. Loaded models are listed first.
  *
  * @since 1.0.0
  *
@@ -70,22 +73,32 @@ class LmStudioModelMetadataDirectory extends AbstractApiBasedModelMetadataDirect
 	/**
 	 * {@inheritDoc}
 	 *
-	 * Only loaded models are registered. Capabilities are derived from the LM Studio
-	 * native API response plus any per-model overrides stored in settings.
+	 * Returns an empty list without a request when LM Studio is not reachable
+	 * from PHP, so an unreachable host is not probed repeatedly. Downloaded models
+	 * are registered regardless of loaded state; loaded ones come first, then the
+	 * user-defined order from settings is applied.
 	 *
 	 * @since 1.0.0
 	 */
 	protected function sendListModelsRequest(): array {
+		if ( ! LmStudioProviderAvailability::is_reachable() ) {
+			return array();
+		}
+
 		$settings    = LmStudioSettings::get_settings();
 		$model_order = isset( $settings['model_order'] ) ? (array) $settings['model_order'] : array();
 
+		$models = $this->fetchModels();
+		usort(
+			$models,
+			static function ( array $a, array $b ): int {
+				return (int) empty( $a['loaded_instances'] ) <=> (int) empty( $b['loaded_instances'] );
+			}
+		);
+
 		$models_map = array();
 
-		foreach ( $this->fetchModels() as $model ) {
-			if ( empty( $model['loaded_instances'] ) ) {
-				continue;
-			}
-
+		foreach ( $models as $model ) {
 			$instance_id = $this->getInstanceId( $model );
 			$type        = $model['type'] ?? 'llm';
 			$caps        = $model['capabilities'] ?? array();
@@ -126,18 +139,6 @@ class LmStudioModelMetadataDirectory extends AbstractApiBasedModelMetadataDirect
 		return $models_map;
 	}
 
-	/**
-	 * Returns all downloaded models with full metadata for display in the settings UI.
-	 *
-	 * Unlike listModelMetadata(), this returns every downloaded model regardless of
-	 * loaded state, so the settings table can show the full picture and offer
-	 * load/unload controls.
-	 *
-	 * @since 1.0.0
-	 *
-	 * @return list<array{key: string, instance_id: string, display_name: string, type: string, capabilities: LmStudioCapabilities, is_loaded: bool, image_generation_override: bool}>
-	 * @throws \Throwable On HTTP or parse failure.
-	 */
 	/**
 	 * Derives the instance ID used in API calls from a model entry.
 	 *
